@@ -515,18 +515,12 @@ async function analyseScript() {
   status.textContent = '';
 
   try {
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${xaiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'grok-beta',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a professional sound designer for video production. 
+    const analyseBody = {
+      model: 'grok-beta',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a professional sound designer for video production. 
 Analyse the provided video script and return a JSON array of sound effect suggestions.
 Each suggestion must be an object with:
 - "timestamp": string (e.g. "0:05" or "N/A")
@@ -534,14 +528,25 @@ Each suggestion must be an object with:
 - "reason": string (why this sound fits)
 Return ONLY valid JSON, no markdown fences, no other text.
 Example output: [{"timestamp":"0:05","prompt":"footsteps on hardwood floor","reason":"Host walks into frame"}]`
-          },
-          {
-            role: 'user',
-            content: `Analyse this video script and suggest sound effects:\n\n${script}`
-          }
-        ],
-        temperature: 0.3
-      })
+        },
+        {
+          role: 'user',
+          content: `Analyse this video script and suggest sound effects:\n\n${script}`
+        }
+      ],
+      temperature: 0.3
+    };
+
+    console.log('[DEBUG] Sending analysis request to https://api.x.ai/v1/chat/completions');
+    console.log('[DEBUG] Payload:', analyseBody);
+
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${xaiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(analyseBody)
     });
 
     if (!response.ok) {
@@ -674,17 +679,23 @@ async function generateVariants(id) {
 }
 
 async function generateElevenLabs(prompt, key) {
+  const elevenBody = {
+    text: prompt,
+    duration_seconds: null,
+    prompt_influence: 0.3
+  };
+
+  console.log('[DEBUG] Sending prompt to ElevenLabs sound-generation API');
+  console.log('[DEBUG] Prompt:', prompt);
+  console.log('[DEBUG] Payload:', elevenBody);
+
   const response = await fetch('https://api.elevenlabs.io/v1/sound-generation', {
     method: 'POST',
     headers: {
       'xi-api-key': key,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      text: prompt,
-      duration_seconds: null,
-      prompt_influence: 0.3
-    })
+    body: JSON.stringify(elevenBody)
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -694,17 +705,23 @@ async function generateElevenLabs(prompt, key) {
 }
 
 async function generateFal(prompt, key) {
+  const falBody = {
+    prompt: prompt,
+    seconds_total: 10,
+    steps: 100
+  };
+
+  console.log('[DEBUG] Sending prompt to fal.ai stable-audio API');
+  console.log('[DEBUG] Prompt:', prompt);
+  console.log('[DEBUG] Payload:', falBody);
+
   const response = await fetch('https://fal.run/fal-ai/stable-audio', {
     method: 'POST',
     headers: {
       'Authorization': `Key ${key}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      prompt: prompt,
-      seconds_total: 10,
-      steps: 100
-    })
+    body: JSON.stringify(falBody)
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

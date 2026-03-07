@@ -12,6 +12,8 @@ for item in data["door_sounds"]:
     desc = item["description"]
     payload = {"description": desc, "format": "mp3"}
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+    print(f"[DEBUG] Sending sound generation request to {API_URL}")
+    print(f"[DEBUG] Payload: {payload}")
     response = requests.post(API_URL, json=payload, headers=headers)
     if response.ok:
         fname = desc.replace(" ", "_") + ".mp3"

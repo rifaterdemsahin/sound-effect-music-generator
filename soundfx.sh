@@ -155,6 +155,9 @@ analyse_script() {
       ]
     }')
 
+  echo "🐛 [DEBUG] Sending analysis request to https://api.x.ai/v1/chat/completions"
+  echo "🐛 [DEBUG] Payload: $payload"
+
   local response
   response=$(curl -s -X POST \
     -H "Authorization: Bearer $XAI_API_KEY" \
@@ -181,6 +184,9 @@ generate_elevenlabs() {
   local payload
   payload=$(jq -n --arg text "$prompt" '{text: $text, duration_seconds: null, prompt_influence: 0.3}')
 
+  echo "  🐛 [DEBUG] Sending prompt to ElevenLabs: $prompt"
+  echo "  🐛 [DEBUG] Payload: $payload"
+
   local http_code
   http_code=$(curl -s -o "$outfile" -w "%{http_code}" \
     -X POST \
@@ -202,6 +208,9 @@ generate_fal() {
   local outfile="$2"
   local payload
   payload=$(jq -n --arg prompt "$prompt" '{prompt: $prompt, seconds_total: 10, steps: 100}')
+
+  echo "  🐛 [DEBUG] Sending prompt to fal.ai: $prompt"
+  echo "  🐛 [DEBUG] Payload: $payload"
 
   local response
   response=$(curl -s -X POST \

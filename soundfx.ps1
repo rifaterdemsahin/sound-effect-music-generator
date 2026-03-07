@@ -202,6 +202,9 @@ function Invoke-ScriptAnalysis {
         )
     }
 
+    Write-Host "🐛 [DEBUG] Sending analysis request to https://api.x.ai/v1/chat/completions"
+    Write-Host "🐛 [DEBUG] Payload: $($body | ConvertTo-Json -Depth 10 -Compress)"
+
     $resp = Invoke-ApiRequest -Uri 'https://api.x.ai/v1/chat/completions' `
         -Method 'POST' `
         -Headers @{ 'Authorization' = "Bearer $XaiKey" } `
@@ -225,6 +228,8 @@ function Invoke-ScriptAnalysis {
 function Generate-ElevenLabs {
     param([string]$Prompt, [string]$OutFile)
     $body = @{ text = $Prompt; duration_seconds = $null; prompt_influence = 0.3 }
+    Write-Host "  🐛 [DEBUG] Sending prompt to ElevenLabs: $Prompt"
+    Write-Host "  🐛 [DEBUG] Payload: $($body | ConvertTo-Json -Depth 10 -Compress)"
     try {
         $params = @{
             Uri         = 'https://api.elevenlabs.io/v1/sound-generation'
@@ -247,6 +252,8 @@ function Generate-Fal {
     param([string]$Prompt, [string]$OutFile)
     try {
         $body = @{ prompt = $Prompt; seconds_total = 10; steps = 100 }
+        Write-Host "  🐛 [DEBUG] Sending prompt to fal.ai: $Prompt"
+        Write-Host "  🐛 [DEBUG] Payload: $($body | ConvertTo-Json -Depth 10 -Compress)"
         $resp = Invoke-ApiRequest -Uri 'https://fal.run/fal-ai/stable-audio' `
             -Method 'POST' `
             -Headers @{ 'Authorization' = "Key $FalKey" } `
