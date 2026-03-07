@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎵 Sound Effect Generator</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242736;
+    --border: #2e3148;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --text: #e2e8f0;
+    --text-muted: #8892a4;
+    --success: #48bb78;
+    --error: #fc8181;
+    --warning: #f6ad55;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  header {
+    text-align: center;
+    padding: 32px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
+  header p { color: var(--text-muted); margin-top: 6px; }
+  .layout { max-width: 1100px; margin: 0 auto; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px; }
+  input[type="text"], input[type="password"], textarea, select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 0.95rem;
+    transition: border-color 0.2s;
+    outline: none;
+    font-family: inherit;
+  }
+  input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+  }
+  textarea { resize: vertical; min-height: 160px; line-height: 1.5; }
+  .key-row { display: flex; gap: 8px; align-items: center; }
+  .key-row input { flex: 1; }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    white-space: nowrap;
+  }
+  button:hover { opacity: 0.88; }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  button.secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  button.danger { background: var(--error); color: #fff; }
+  button.success-btn { background: var(--success); color: #fff; }
+  button.small { padding: 6px 14px; font-size: 0.82rem; }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .toggle-label { font-size: 0.85rem; color: var(--text-muted); }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--accent);
+    color: #fff;
+  }
+  .badge.fal { background: var(--accent2); }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    display: inline-block;
+    transition: background 0.3s;
+  }
+  .status-dot.ok { background: var(--success); }
+  .status-dot.err { background: var(--error); }
+  .status-dot.checking { background: var(--warning); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .connection-checks {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .conn-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .conn-item:hover { border-color: var(--accent); }
+  .conn-item span { font-weight: 600; color: var(--text); }
+  .prompt-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .prompt-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .prompt-header textarea {
+    flex: 1;
+    min-height: 48px;
+    resize: none;
+    font-size: 0.9rem;
+  }
+  .prompt-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .variants-input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+  .variants-input input[type="number"] {
+    width: 56px;
+    padding: 6px 8px;
+    text-align: center;
+  }
+  .audio-results { margin-top: 12px; }
+  .audio-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .audio-item:last-child { border-bottom: none; }
+  audio { flex: 1; min-width: 200px; height: 36px; }
+  .loading-spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 0.9rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 9999;
+    max-width: 340px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .toast.error { border-color: var(--error); }
+  .toast.success { border-color: var(--success); }
+  #prompts-list { margin-top: 0; }
+  .section-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .key-status { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; }
+  .key-status.saved { background: #1a3328; color: var(--success); border: 1px solid #2d5a47; }
+  .hidden { display: none; }
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎵 Sound Effect Generator</h1>
+  <p>AI-powered sound effects for video production — analyse your script, generate audio</p>
+</header>
+
+<div class="layout">
+
+  <!-- API Key Management -->
+  <div class="card">
+    <h2>🔑 API Keys <small style="font-size:0.7rem;font-weight:400;margin-left:8px;color:#6c63ff">(saved to cookies)</small></h2>
+    <div class="grid-2">
+      <div>
+        <label>ElevenLabs API Key</label>
+        <div class="key-row">
+          <input type="password" id="elevenlabs-key" placeholder="sk_..." autocomplete="off">
+          <button class="secondary small" onclick="toggleVis('elevenlabs-key')">👁</button>
+        </div>
+      </div>
+      <div>
+        <label>fal.ai API Key</label>
+        <div class="key-row">
+          <input type="password" id="fal-key" placeholder="fal_..." autocomplete="off">
+          <button class="secondary small" onclick="toggleVis('fal-key')">👁</button>
+        </div>
+      </div>
+      <div>
+        <label>Grok / xAI API Key</label>
+        <div class="key-row">
+          <input type="password" id="xai-key" placeholder="xai-..." autocomplete="off">
+          <button class="secondary small" onclick="toggleVis('xai-key')">👁</button>
+        </div>
+      </div>
+      <div>
+        <label>Generation Backend</label>
+        <div class="toggle-row">
+          <select id="backend-select" style="max-width:200px">
+            <option value="elevenlabs">ElevenLabs</option>
+            <option value="fal">fal.ai</option>
+          </select>
+          <span id="backend-badge" class="badge">ElevenLabs</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button onclick="saveKeys()">💾 Save Keys</button>
+      <button class="secondary" onclick="clearKeys()">🗑 Clear Keys</button>
+      <span id="keys-status" class="key-status" style="display:none"></span>
+    </div>
+
+    <!-- Connection Checks -->
+    <div style="margin-top:20px">
+      <label style="margin-bottom:10px;display:block">Connection Status <small style="color:var(--text-muted)">(click to test)</small></label>
+      <div class="connection-checks">
+        <div class="conn-item" onclick="testConnection('elevenlabs')" id="conn-elevenlabs">
+          <span class="status-dot" id="dot-elevenlabs"></span>
+          <span>ElevenLabs</span>
+          <small id="msg-elevenlabs" style="color:var(--text-muted)">not tested</small>
+        </div>
+        <div class="conn-item" onclick="testConnection('fal')" id="conn-fal">
+          <span class="status-dot" id="dot-fal"></span>
+          <span>fal.ai</span>
+          <small id="msg-fal" style="color:var(--text-muted)">not tested</small>
+        </div>
+        <div class="conn-item" onclick="testConnection('xai')" id="conn-xai">
+          <span class="status-dot" id="dot-xai"></span>
+          <span>Grok/xAI</span>
+          <small id="msg-xai" style="color:var(--text-muted)">not tested</small>
+        </div>
+        <div class="conn-item" onclick="testAllConnections()" style="border-color:var(--accent)">
+          <span>⚡</span>
+          <span>Test All</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Analyser -->
+  <div class="card">
+    <h2>📄 Script Analyser</h2>
+    <div>
+      <label>Paste your video script</label>
+      <textarea id="script-input" placeholder="Paste your script here... e.g.&#10;&#10;[0:05] The door swings open as footsteps echo down the hallway.&#10;[0:12] Keyboard typing rapidly while alerts flash on screen.&#10;[0:30] Dramatic music swell as the title appears..."></textarea>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button id="analyse-btn" onclick="analyseScript()">🔍 Analyse Script</button>
+      <button class="secondary" onclick="loadExampleScript()">📋 Load Example</button>
+      <span id="analyse-status" style="font-size:0.85rem;color:var(--text-muted)"></span>
+    </div>
+  </div>
+
+  <!-- Sound Effect Generator -->
+  <div class="card">
+    <h2>🎛 Sound Effect Generator</h2>
+    <div id="prompts-empty" class="empty-state">
+      Analyse a script above to see suggested sound effect prompts here,<br>or add one manually.
+    </div>
+    <div class="section-actions hidden" id="section-actions">
+      <button onclick="generateAll()" id="gen-all-btn">⚡ Generate All</button>
+      <button class="secondary" onclick="addPromptCard('')">➕ Add Prompt</button>
+      <div class="variants-input">
+        <label style="margin:0">Default variants:</label>
+        <input type="number" id="global-variants" value="3" min="1" max="10" style="width:56px">
+      </div>
+    </div>
+    <div id="prompts-list"></div>
+    <div style="margin-top:12px" id="add-prompt-row" style="display:none">
+      <button class="secondary" onclick="addPromptCard('')" id="add-first-btn" style="display:none">➕ Add Prompt Manually</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'));
+  return m ? decodeURIComponent(m[1]) : '';
+}
+function setCookie(name, value, days = 365) {
+  const exp = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${exp};path=/;SameSite=Lax`;
+}
+function deleteCookie(name) {
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+}
+function toggleVis(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+function showToast(msg, type = 'info', duration = 3500) {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), duration);
+}
+
+// ─── Keys ─────────────────────────────────────────────────────────────────────
+function loadKeys() {
+  const el = getCookie('elevenlabs_key');
+  const fal = getCookie('fal_key');
+  const xai = getCookie('xai_key');
+  const backend = getCookie('backend') || 'elevenlabs';
+  if (el)  document.getElementById('elevenlabs-key').value = el;
+  if (fal) document.getElementById('fal-key').value = fal;
+  if (xai) document.getElementById('xai-key').value = xai;
+  document.getElementById('backend-select').value = backend;
+  updateBackendBadge(backend);
+}
+function saveKeys() {
+  setCookie('elevenlabs_key', document.getElementById('elevenlabs-key').value.trim());
+  setCookie('fal_key', document.getElementById('fal-key').value.trim());
+  setCookie('xai_key', document.getElementById('xai-key').value.trim());
+  setCookie('backend', document.getElementById('backend-select').value);
+  const s = document.getElementById('keys-status');
+  s.style.display = 'inline';
+  s.className = 'key-status saved';
+  s.textContent = '✓ Saved';
+  setTimeout(() => s.style.display = 'none', 2500);
+  showToast('API keys saved to cookies', 'success');
+}
+function clearKeys() {
+  ['elevenlabs_key','fal_key','xai_key','backend'].forEach(deleteCookie);
+  ['elevenlabs-key','fal-key','xai-key'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('backend-select').value = 'elevenlabs';
+  updateBackendBadge('elevenlabs');
+  showToast('API keys cleared', 'info');
+}
+function updateBackendBadge(val) {
+  const b = document.getElementById('backend-badge');
+  b.textContent = val === 'fal' ? 'fal.ai' : 'ElevenLabs';
+  b.className = 'badge' + (val === 'fal' ? ' fal' : '');
+}
+document.getElementById('backend-select').addEventListener('change', e => updateBackendBadge(e.target.value));
+
+// ─── Connection Checks ────────────────────────────────────────────────────────
+const CONNECTION_TESTS = {
+  elevenlabs: {
+    label: 'ElevenLabs',
+    test: async (key) => {
+      if (!key) throw new Error('No API key');
+      const r = await fetch('https://api.elevenlabs.io/v1/user', {
+        headers: { 'xi-api-key': key }
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      return `OK (${d.subscription?.tier || 'connected'})`;
+    }
+  },
+  fal: {
+    label: 'fal.ai',
+    test: async (key) => {
+      if (!key) throw new Error('No API key');
+      // fal.ai doesn't have a dedicated ping endpoint; test via a lightweight models list
+      const r = await fetch('https://fal.run/fal-ai/stable-audio', {
+        method: 'POST',
+        headers: { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: 'test', seconds_total: 1 })
+      });
+      // 422 / 400 means auth passed but invalid payload — still counts as connected
+      if (r.status === 401 || r.status === 403) throw new Error(`Auth failed (${r.status})`);
+      return `OK (HTTP ${r.status})`;
+    }
+  },
+  xai: {
+    label: 'Grok/xAI',
+    test: async (key) => {
+      if (!key) throw new Error('No API key');
+      const r = await fetch('https://api.x.ai/v1/models', {
+        headers: { 'Authorization': `Bearer ${key}` }
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      const models = d.data?.map(m => m.id).join(', ') || 'connected';
+      return `OK (${models.slice(0, 40)})`;
+    }
+  }
+};
+
+function getKeyFor(service) {
+  const map = { elevenlabs: 'elevenlabs-key', fal: 'fal-key', xai: 'xai-key' };
+  return document.getElementById(map[service])?.value.trim() || '';
+}
+
+async function testConnection(service) {
+  const dot = document.getElementById(`dot-${service}`);
+  const msg = document.getElementById(`msg-${service}`);
+  dot.className = 'status-dot checking';
+  msg.textContent = 'testing…';
+  try {
+    const key = getKeyFor(service);
+    const result = await CONNECTION_TESTS[service].test(key);
+    dot.className = 'status-dot ok';
+    msg.textContent = result;
+  } catch (e) {
+    dot.className = 'status-dot err';
+    msg.textContent = e.message || 'failed';
+  }
+}
+
+async function testAllConnections() {
+  await Promise.all(['elevenlabs', 'fal', 'xai'].map(testConnection));
+}
+
+// ─── Script Analyser ──────────────────────────────────────────────────────────
+function loadExampleScript() {
+  document.getElementById('script-input').value = `[0:00] Upbeat intro music fades in.
+[0:05] The host walks into frame — footsteps on hardwood floor.
+[0:12] They sit down at a desk, chair creaking slightly.
+[0:18] Keyboard typing rapidly as code appears on screen.
+[0:30] A notification ping sound as an email arrives.
+[0:45] Dramatic whoosh as the slide transitions.
+[1:00] Applause from an audience.
+[1:15] Door opening and closing in the background.
+[1:30] Coffee cup being placed on desk.
+[2:00] Outro music swells and fades out.`;
+}
+
+async function analyseScript() {
+  const script = document.getElementById('script-input').value.trim();
+  if (!script) { showToast('Please paste a script first', 'error'); return; }
+  const xaiKey = getKeyFor('xai');
+  if (!xaiKey) { showToast('Please enter your Grok/xAI API key first', 'error'); return; }
+
+  const btn = document.getElementById('analyse-btn');
+  const status = document.getElementById('analyse-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span>Analysing…';
+  status.textContent = '';
+
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${xaiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'grok-beta',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a professional sound designer for video production. 
+Analyse the provided video script and return a JSON array of sound effect suggestions.
+Each suggestion must be an object with:
+- "timestamp": string (e.g. "0:05" or "N/A")
+- "prompt": string (a concise ElevenLabs/fal.ai text-to-audio prompt, e.g. "wooden chair creaking")
+- "reason": string (why this sound fits)
+Return ONLY valid JSON, no markdown fences, no other text.
+Example output: [{"timestamp":"0:05","prompt":"footsteps on hardwood floor","reason":"Host walks into frame"}]`
+          },
+          {
+            role: 'user',
+            content: `Analyse this video script and suggest sound effects:\n\n${script}`
+          }
+        ],
+        temperature: 0.3
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '[]';
+    let suggestions;
+    try {
+      suggestions = JSON.parse(content);
+    } catch {
+      // Try extracting JSON array from response if model added extra text
+      const m = content.match(/\[[\s\S]*\]/);
+      suggestions = m ? JSON.parse(m[0]) : [];
+    }
+
+    if (!Array.isArray(suggestions) || suggestions.length === 0) {
+      throw new Error('No suggestions returned — check your script or try again');
+    }
+
+    renderPrompts(suggestions);
+    status.textContent = `✓ ${suggestions.length} sound effects suggested`;
+    showToast(`${suggestions.length} sound effects suggested!`, 'success');
+  } catch (e) {
+    showToast(`Analysis failed: ${e.message}`, 'error', 5000);
+    status.textContent = `Error: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 Analyse Script';
+  }
+}
+
+// ─── Prompt Cards ─────────────────────────────────────────────────────────────
+let promptCards = [];
+let cardIdCounter = 0;
+
+function renderPrompts(suggestions) {
+  promptCards = [];
+  const list = document.getElementById('prompts-list');
+  list.innerHTML = '';
+  suggestions.forEach(s => addPromptCard(s.prompt, s.timestamp, s.reason));
+  showSectionActions(true);
+}
+
+function showSectionActions(show) {
+  const empty = document.getElementById('prompts-empty');
+  const actions = document.getElementById('section-actions');
+  const addFirstBtn = document.getElementById('add-first-btn');
+  if (show) {
+    empty.style.display = 'none';
+    actions.classList.remove('hidden');
+    addFirstBtn.style.display = 'none';
+  } else if (promptCards.length === 0) {
+    empty.style.display = 'block';
+    actions.classList.add('hidden');
+    addFirstBtn.style.display = 'inline-block';
+  }
+}
+
+function addPromptCard(prompt, timestamp = '', reason = '') {
+  const id = ++cardIdCounter;
+  promptCards.push(id);
+  const list = document.getElementById('prompts-list');
+  const defaultVariants = document.getElementById('global-variants').value || 3;
+
+  const card = document.createElement('div');
+  card.className = 'prompt-card';
+  card.id = `card-${id}`;
+  card.innerHTML = `
+    <div class="prompt-header">
+      <textarea id="prompt-text-${id}" rows="2" placeholder="Describe the sound effect…">${escHtml(prompt)}</textarea>
+      ${timestamp ? `<span class="badge" style="white-space:nowrap">${escHtml(timestamp)}</span>` : ''}
+    </div>
+    ${reason ? `<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">💡 ${escHtml(reason)}</p>` : ''}
+    <div class="prompt-actions">
+      <button class="small" onclick="generateVariants(${id})">▶ Generate</button>
+      <div class="variants-input">
+        <label style="margin:0">Variants:</label>
+        <input type="number" id="variants-${id}" value="${defaultVariants}" min="1" max="10">
+      </div>
+      <button class="secondary small" onclick="removeCard(${id})">✕ Remove</button>
+    </div>
+    <div class="audio-results" id="results-${id}"></div>
+  `;
+  list.appendChild(card);
+  showSectionActions(true);
+}
+
+function removeCard(id) {
+  const card = document.getElementById(`card-${id}`);
+  if (card) card.remove();
+  promptCards = promptCards.filter(x => x !== id);
+  if (promptCards.length === 0) showSectionActions(false);
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Sound Generation ─────────────────────────────────────────────────────────
+async function generateVariants(id) {
+  const prompt = document.getElementById(`prompt-text-${id}`)?.value.trim();
+  const variants = parseInt(document.getElementById(`variants-${id}`)?.value) || 3;
+  if (!prompt) { showToast('Prompt is empty', 'error'); return; }
+
+  const backend = document.getElementById('backend-select').value;
+  const key = getKeyFor(backend === 'fal' ? 'fal' : 'elevenlabs');
+  if (!key) { showToast(`Please enter your ${backend === 'fal' ? 'fal.ai' : 'ElevenLabs'} API key`, 'error'); return; }
+
+  const resultsEl = document.getElementById(`results-${id}`);
+  resultsEl.innerHTML = `<div style="padding:10px;color:var(--text-muted);font-size:0.85rem"><span class="loading-spinner"></span>Generating ${variants} variant${variants>1?'s':''}…</div>`;
+
+  const genFn = backend === 'fal' ? generateFal : generateElevenLabs;
+  const results = [];
+  let errors = 0;
+
+  for (let i = 0; i < variants; i++) {
+    try {
+      const audioBlob = await genFn(prompt, key);
+      results.push({ blob: audioBlob, index: i + 1 });
+    } catch (e) {
+      errors++;
+      results.push({ error: e.message, index: i + 1 });
+    }
+  }
+
+  renderAudioResults(resultsEl, results, prompt);
+}
+
+async function generateElevenLabs(prompt, key) {
+  const response = await fetch('https://api.elevenlabs.io/v1/sound-generation', {
+    method: 'POST',
+    headers: {
+      'xi-api-key': key,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      text: prompt,
+      duration_seconds: null,
+      prompt_influence: 0.3
+    })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail?.message || err.detail || `HTTP ${response.status}`);
+  }
+  return await response.blob();
+}
+
+async function generateFal(prompt, key) {
+  const response = await fetch('https://fal.run/fal-ai/stable-audio', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      prompt: prompt,
+      seconds_total: 10,
+      steps: 100
+    })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || err.error || `HTTP ${response.status}`);
+  }
+  const data = await response.json();
+  // fal.ai returns URL(s)
+  const audioUrl = data.audio_file?.url || data.audio?.url || (data.outputs && data.outputs[0]?.url);
+  if (!audioUrl) throw new Error('No audio URL in response');
+  const audioResp = await fetch(audioUrl);
+  return await audioResp.blob();
+}
+
+function renderAudioResults(container, results, prompt) {
+  container.innerHTML = '';
+  results.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'audio-item';
+    if (r.error) {
+      item.innerHTML = `<span style="color:var(--error);font-size:0.85rem">✕ Variant ${r.index}: ${escHtml(r.error)}</span>`;
+    } else {
+      const url = URL.createObjectURL(r.blob);
+      const safeName = prompt.slice(0, 40).replace(/[^a-z0-9]/gi, '_');
+      item.innerHTML = `
+        <span style="font-size:0.8rem;color:var(--text-muted);min-width:70px">Variant ${r.index}</span>
+        <audio controls src="${url}"></audio>
+        <a href="${url}" download="${safeName}_v${r.index}.mp3">
+          <button class="secondary small">⬇ Download</button>
+        </a>
+      `;
+    }
+    container.appendChild(item);
+  });
+}
+
+async function generateAll() {
+  const btn = document.getElementById('gen-all-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span>Generating all…';
+  for (const id of [...promptCards]) {
+    await generateVariants(id);
+  }
+  btn.disabled = false;
+  btn.textContent = '⚡ Generate All';
+  showToast('All prompts generated!', 'success');
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadKeys();
+// Show "add first" button
+document.getElementById('add-first-btn').style.display = 'inline-block';
+document.getElementById('add-first-btn').onclick = () => { addPromptCard(''); showSectionActions(true); };
+</script>
+</body>
+</html>
