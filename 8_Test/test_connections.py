@@ -374,6 +374,19 @@ class TestIndexHtmlContent(unittest.TestCase):
         """index.html must use .wav extension for downloaded audio files."""
         self.assertIn(".wav", self.content)
 
+    def test_has_popular_music_scorer(self):
+        """index.html must contain the Popular Music Scorer feature."""
+        self.assertIn("scoreMusicForScript", self.content)
+        self.assertIn("Popular Music Scorer", self.content)
+
+    def test_has_music_score_rendering(self):
+        """index.html must contain a renderMusicScores function."""
+        self.assertIn("renderMusicScores", self.content)
+
+    def test_has_music_score_table(self):
+        """index.html must contain a music score table structure."""
+        self.assertIn("music-score-table", self.content)
+
 
 class TestShellScriptContent(unittest.TestCase):
     """Tests that verify soundfx.sh contains required functionality."""
