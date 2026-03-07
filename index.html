@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎵 Sound Effect Generator</title>
+<title>🎵 Sound Effect Music Generator</title>
 <style>
   :root {
     --bg: #0f1117;
@@ -241,12 +241,56 @@
     color: var(--text-muted);
     font-size: 0.9rem;
   }
+  .mode-selector {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .mode-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .mode-option input[type="checkbox"] {
+    width: auto;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .debug-panel {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.8rem;
+    background: #0a0c14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    max-height: 220px;
+    overflow-y: auto;
+    color: #7ec8e3;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .debug-panel .debug-entry { margin-bottom: 4px; }
+  .debug-panel .debug-entry.prompt { color: #48bb78; }
+  .debug-panel .debug-entry.info  { color: #7ec8e3; }
+  .debug-panel .debug-entry.warn  { color: var(--warning); }
+  .wip-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--warning);
+    font-weight: 600;
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>🎵 Sound Effect Generator</h1>
-  <p>AI-powered sound effects for video production — analyse your script, generate audio</p>
+  <h1>🎵 Sound Effect Music Generator</h1>
+  <p>AI-powered sound effects &amp; music for video production — analyse your script, generate audio</p>
 </header>
 
 <div class="layout">
@@ -327,16 +371,25 @@
       <label>Paste your video script</label>
       <textarea id="script-input" placeholder="Paste your script here... e.g.&#10;&#10;[0:05] The door swings open as footsteps echo down the hallway.&#10;[0:12] Keyboard typing rapidly while alerts flash on screen.&#10;[0:30] Dramatic music swell as the title appears..."></textarea>
     </div>
+    <div style="margin-top:12px">
+      <label style="margin-bottom:8px;display:block">Generation Mode</label>
+      <div class="mode-selector">
+        <label class="mode-option"><input type="checkbox" id="mode-sound" checked> 🔊 Sound Effects</label>
+        <label class="mode-option"><input type="checkbox" id="mode-music"> 🎵 Music</label>
+        <label class="mode-option"><input type="checkbox" id="mode-both" onchange="toggleBothMode(this)"> 🎶 Both (Sound &amp; Music)</label>
+      </div>
+    </div>
     <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <button id="analyse-btn" onclick="analyseScript()">🔍 Analyse Script</button>
       <button class="secondary" onclick="loadExampleScript()">📋 Load Example</button>
       <span id="analyse-status" style="font-size:0.85rem;color:var(--text-muted)"></span>
+      <span id="analyse-wip" class="wip-badge hidden"><span class="loading-spinner"></span>⏳ Work in Progress…</span>
     </div>
   </div>
 
-  <!-- Sound Effect Generator -->
+  <!-- Sound Effect Music Generator -->
   <div class="card">
-    <h2>🎛 Sound Effect Generator</h2>
+    <h2>🎛 Sound Effect Music Generator</h2>
     <div id="prompts-empty" class="empty-state">
       Analyse a script above to see suggested sound effect prompts here,<br>or add one manually.
     </div>
@@ -347,10 +400,19 @@
         <label style="margin:0">Default variants:</label>
         <input type="number" id="global-variants" value="3" min="1" max="10" style="width:56px">
       </div>
+      <span id="gen-wip" class="wip-badge hidden"><span class="loading-spinner"></span>⏳ Work in Progress…</span>
     </div>
     <div id="prompts-list"></div>
     <div style="margin-top:12px" id="add-prompt-row" style="display:none">
       <button class="secondary" onclick="addPromptCard('')" id="add-first-btn" style="display:none">➕ Add Prompt Manually</button>
+    </div>
+  </div><!-- end layout -->
+
+  <!-- Debug Log -->
+  <div class="layout" style="margin-top:0">
+    <div class="card">
+      <h2>🐛 Debug Log <button class="secondary small" style="margin-left:8px" onclick="clearDebugLog()">Clear</button></h2>
+      <div id="debug-log" class="debug-panel"><span style="color:var(--text-muted)">Debug output will appear here when prompts are sent to APIs…</span></div>
     </div>
   </div>
 
@@ -379,6 +441,38 @@ function showToast(msg, type = 'info', duration = 3500) {
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), duration);
+}
+
+// ─── Debug Log ────────────────────────────────────────────────────────────────
+function debugLog(msg, level = 'info') {
+  console.log(`[DEBUG] ${msg}`);
+  const log = document.getElementById('debug-log');
+  if (!log) return;
+  // Clear placeholder on first real message
+  if (log.querySelector('span[style]')) log.innerHTML = '';
+  const entry = document.createElement('div');
+  entry.className = `debug-entry ${level}`;
+  const ts = new Date().toLocaleTimeString();
+  entry.textContent = `[${ts}] ${msg}`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+function clearDebugLog() {
+  const log = document.getElementById('debug-log');
+  if (log) log.innerHTML = '<span style="color:var(--text-muted)">Debug output will appear here when prompts are sent to APIs…</span>';
+}
+
+// ─── Mode Selector ────────────────────────────────────────────────────────────
+function toggleBothMode(cb) {
+  document.getElementById('mode-sound').checked = cb.checked;
+  document.getElementById('mode-music').checked = cb.checked;
+}
+function getSelectedMode() {
+  const sound = document.getElementById('mode-sound').checked;
+  const music = document.getElementById('mode-music').checked;
+  if (sound && music) return 'both';
+  if (music) return 'music';
+  return 'sound';
 }
 
 // ─── Keys ─────────────────────────────────────────────────────────────────────
@@ -508,37 +602,54 @@ async function analyseScript() {
   const xaiKey = getKeyFor('xai');
   if (!xaiKey) { showToast('Please enter your Grok/xAI API key first', 'error'); return; }
 
+  const mode = getSelectedMode();
+  const modeDesc = mode === 'both' ? 'sound effects and music'
+                 : mode === 'music' ? 'music cues'
+                 : 'sound effects';
+
   const btn = document.getElementById('analyse-btn');
   const status = document.getElementById('analyse-status');
+  const wip = document.getElementById('analyse-wip');
   btn.disabled = true;
   btn.innerHTML = '<span class="loading-spinner"></span>Analysing…';
   status.textContent = '';
+  wip.classList.remove('hidden');
 
   try {
+    const typeInstruction = mode === 'both'
+      ? 'Include both sound effects (type: "sound") and music cues (type: "music").'
+      : mode === 'music'
+        ? 'Focus only on music cues. Set type to "music" for every suggestion.'
+        : 'Focus only on sound effects. Set type to "sound" for every suggestion.';
+
     const analyseBody = {
       model: 'grok-beta',
       messages: [
         {
           role: 'system',
           content: `You are a professional sound designer for video production. 
-Analyse the provided video script and return a JSON array of sound effect suggestions.
+Analyse the provided video script and return a JSON array of ${modeDesc} suggestions.
 Each suggestion must be an object with:
 - "timestamp": string (e.g. "0:05" or "N/A")
+- "type": string ("sound" or "music")
 - "prompt": string (a concise ElevenLabs/fal.ai text-to-audio prompt, e.g. "wooden chair creaking")
 - "reason": string (why this sound fits)
+${typeInstruction}
 Return ONLY valid JSON, no markdown fences, no other text.
-Example output: [{"timestamp":"0:05","prompt":"footsteps on hardwood floor","reason":"Host walks into frame"}]`
+Example output: [{"timestamp":"0:05","type":"sound","prompt":"footsteps on hardwood floor","reason":"Host walks into frame"}]`
         },
         {
           role: 'user',
-          content: `Analyse this video script and suggest sound effects:\n\n${script}`
+          content: `Analyse this video script and suggest ${modeDesc}:\n\n${script}`
         }
       ],
       temperature: 0.3
     };
 
-    console.log('[DEBUG] Sending analysis request to https://api.x.ai/v1/chat/completions');
-    console.log('[DEBUG] Payload:', analyseBody);
+    debugLog(`Sending analysis request — mode: ${mode}`, 'info');
+    debugLog(`API endpoint: https://api.x.ai/v1/chat/completions`, 'info');
+    debugLog(`System prompt sent to Grok:\n${analyseBody.messages[0].content}`, 'prompt');
+    debugLog(`User prompt: ${analyseBody.messages[1].content.slice(0, 120)}…`, 'prompt');
 
     const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
@@ -569,15 +680,22 @@ Example output: [{"timestamp":"0:05","prompt":"footsteps on hardwood floor","rea
       throw new Error('No suggestions returned — check your script or try again');
     }
 
+    // Backfill type if model omitted it
+    suggestions.forEach(s => { if (!s.type) s.type = mode === 'music' ? 'music' : 'sound'; });
+
+    debugLog(`Analysis complete — ${suggestions.length} suggestion(s) returned`, 'info');
+
     renderPrompts(suggestions);
-    status.textContent = `✓ ${suggestions.length} sound effects suggested`;
-    showToast(`${suggestions.length} sound effects suggested!`, 'success');
+    status.textContent = `✓ ${suggestions.length} ${modeDesc} suggested`;
+    showToast(`${suggestions.length} ${modeDesc} suggested!`, 'success');
   } catch (e) {
+    debugLog(`Analysis error: ${e.message}`, 'warn');
     showToast(`Analysis failed: ${e.message}`, 'error', 5000);
     status.textContent = `Error: ${e.message}`;
   } finally {
     btn.disabled = false;
     btn.textContent = '🔍 Analyse Script';
+    wip.classList.add('hidden');
   }
 }
 
@@ -589,7 +707,7 @@ function renderPrompts(suggestions) {
   promptCards = [];
   const list = document.getElementById('prompts-list');
   list.innerHTML = '';
-  suggestions.forEach(s => addPromptCard(s.prompt, s.timestamp, s.reason));
+  suggestions.forEach(s => addPromptCard(s.prompt, s.timestamp, s.reason, s.type || 'sound'));
   showSectionActions(true);
 }
 
@@ -608,19 +726,22 @@ function showSectionActions(show) {
   }
 }
 
-function addPromptCard(prompt, timestamp = '', reason = '') {
+function addPromptCard(prompt, timestamp = '', reason = '', type = 'sound') {
   const id = ++cardIdCounter;
   promptCards.push(id);
   const list = document.getElementById('prompts-list');
   const defaultVariants = document.getElementById('global-variants').value || 3;
+  const typeLabel = type === 'music' ? '🎵 Music' : '🔊 Sound';
 
   const card = document.createElement('div');
   card.className = 'prompt-card';
   card.id = `card-${id}`;
+  card.dataset.type = type;
   card.innerHTML = `
     <div class="prompt-header">
       <textarea id="prompt-text-${id}" rows="2" placeholder="Describe the sound effect…">${escHtml(prompt)}</textarea>
       ${timestamp ? `<span class="badge" style="white-space:nowrap">${escHtml(timestamp)}</span>` : ''}
+      <span class="badge ${type === 'music' ? 'fal' : ''}" style="white-space:nowrap">${typeLabel}</span>
     </div>
     ${reason ? `<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">💡 ${escHtml(reason)}</p>` : ''}
     <div class="prompt-actions">
@@ -629,6 +750,7 @@ function addPromptCard(prompt, timestamp = '', reason = '') {
         <label style="margin:0">Variants:</label>
         <input type="number" id="variants-${id}" value="${defaultVariants}" min="1" max="10">
       </div>
+      <span id="wip-${id}" class="wip-badge hidden"><span class="loading-spinner"></span>⏳ Work in Progress…</span>
       <button class="secondary small" onclick="removeCard(${id})">✕ Remove</button>
     </div>
     <div class="audio-results" id="results-${id}"></div>
@@ -658,8 +780,12 @@ async function generateVariants(id) {
   const key = getKeyFor(backend === 'fal' ? 'fal' : 'elevenlabs');
   if (!key) { showToast(`Please enter your ${backend === 'fal' ? 'fal.ai' : 'ElevenLabs'} API key`, 'error'); return; }
 
+  const type = document.getElementById(`card-${id}`)?.dataset.type || 'sound';
+  const wip = document.getElementById(`wip-${id}`);
+  if (wip) wip.classList.remove('hidden');
+
   const resultsEl = document.getElementById(`results-${id}`);
-  resultsEl.innerHTML = `<div style="padding:10px;color:var(--text-muted);font-size:0.85rem"><span class="loading-spinner"></span>Generating ${variants} variant${variants>1?'s':''}…</div>`;
+  resultsEl.innerHTML = `<div style="padding:10px;color:var(--text-muted);font-size:0.85rem"><span class="loading-spinner"></span>⏳ Work in Progress — Generating ${variants} variant${variants>1?'s':''}…</div>`;
 
   const genFn = backend === 'fal' ? generateFal : generateElevenLabs;
   const results = [];
@@ -667,7 +793,7 @@ async function generateVariants(id) {
 
   for (let i = 0; i < variants; i++) {
     try {
-      const audioBlob = await genFn(prompt, key);
+      const audioBlob = await genFn(prompt, key, type);
       results.push({ blob: audioBlob, index: i + 1 });
     } catch (e) {
       errors++;
@@ -675,19 +801,20 @@ async function generateVariants(id) {
     }
   }
 
-  renderAudioResults(resultsEl, results, prompt);
+  if (wip) wip.classList.add('hidden');
+  renderAudioResults(resultsEl, results, prompt, type);
 }
 
-async function generateElevenLabs(prompt, key) {
+async function generateElevenLabs(prompt, key, type = 'sound') {
   const elevenBody = {
     text: prompt,
     duration_seconds: null,
     prompt_influence: 0.3
   };
 
-  console.log('[DEBUG] Sending prompt to ElevenLabs sound-generation API');
-  console.log('[DEBUG] Prompt:', prompt);
-  console.log('[DEBUG] Payload:', elevenBody);
+  debugLog(`[ElevenLabs] type=${type} — Sending prompt: "${prompt}"`, 'prompt');
+  debugLog(`[ElevenLabs] Endpoint: https://api.elevenlabs.io/v1/sound-generation`, 'info');
+  debugLog(`[ElevenLabs] Payload: ${JSON.stringify(elevenBody)}`, 'info');
 
   const response = await fetch('https://api.elevenlabs.io/v1/sound-generation', {
     method: 'POST',
@@ -704,16 +831,16 @@ async function generateElevenLabs(prompt, key) {
   return await response.blob();
 }
 
-async function generateFal(prompt, key) {
+async function generateFal(prompt, key, type = 'sound') {
   const falBody = {
     prompt: prompt,
     seconds_total: 10,
     steps: 100
   };
 
-  console.log('[DEBUG] Sending prompt to fal.ai stable-audio API');
-  console.log('[DEBUG] Prompt:', prompt);
-  console.log('[DEBUG] Payload:', falBody);
+  debugLog(`[fal.ai] type=${type} — Sending prompt: "${prompt}"`, 'prompt');
+  debugLog(`[fal.ai] Endpoint: https://fal.run/fal-ai/stable-audio`, 'info');
+  debugLog(`[fal.ai] Payload: ${JSON.stringify(falBody)}`, 'info');
 
   const response = await fetch('https://fal.run/fal-ai/stable-audio', {
     method: 'POST',
@@ -735,7 +862,7 @@ async function generateFal(prompt, key) {
   return await audioResp.blob();
 }
 
-function renderAudioResults(container, results, prompt) {
+function renderAudioResults(container, results, prompt, type = 'sound') {
   container.innerHTML = '';
   results.forEach(r => {
     const item = document.createElement('div');
@@ -744,15 +871,18 @@ function renderAudioResults(container, results, prompt) {
       item.innerHTML = `<span style="color:var(--error);font-size:0.85rem">✕ Variant ${r.index}: ${escHtml(r.error)}</span>`;
     } else {
       const url = URL.createObjectURL(r.blob);
+      // Filename format: [type]_[word1]_[word2]_[word3]_v[n].wav
       const words = prompt.trim().split(/\s+/).slice(0, 3)
         .map(w => w.replace(/[^a-z0-9]/gi, '').toLowerCase()).filter(w => w.length > 0);
-      const safeName = words.length > 0 ? words.join('_') : 'sound';
+      const snippet = words.length > 0 ? words.join('_') : 'audio';
+      const fileName = `${type}_${snippet}_v${r.index}.wav`;
       item.innerHTML = `
         <span style="font-size:0.8rem;color:var(--text-muted);min-width:70px">Variant ${r.index}</span>
         <audio controls src="${url}"></audio>
-        <a href="${url}" download="${safeName}_v${r.index}.mp3">
+        <a href="${url}" download="${fileName}">
           <button class="secondary small">⬇ Download</button>
         </a>
+        <span style="font-size:0.75rem;color:var(--text-muted)">${escHtml(fileName)}</span>
       `;
     }
     container.appendChild(item);
@@ -761,13 +891,16 @@ function renderAudioResults(container, results, prompt) {
 
 async function generateAll() {
   const btn = document.getElementById('gen-all-btn');
+  const wip = document.getElementById('gen-wip');
   btn.disabled = true;
   btn.innerHTML = '<span class="loading-spinner"></span>Generating all…';
+  if (wip) wip.classList.remove('hidden');
   for (const id of [...promptCards]) {
     await generateVariants(id);
   }
   btn.disabled = false;
   btn.textContent = '⚡ Generate All';
+  if (wip) wip.classList.add('hidden');
   showToast('All prompts generated!', 'success');
 }
 

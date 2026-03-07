@@ -349,6 +349,31 @@ class TestIndexHtmlContent(unittest.TestCase):
         """index.html must call the xAI chat completions endpoint."""
         self.assertIn("api.x.ai/v1/chat/completions", self.content)
 
+    def test_has_music_generator_title(self):
+        """index.html must use the updated 'Sound Effect Music Generator' title."""
+        self.assertIn("Sound Effect Music Generator", self.content)
+
+    def test_has_generation_mode_checkboxes(self):
+        """index.html must contain generation mode checkboxes for Sound Effects and Music."""
+        self.assertIn("mode-sound", self.content)
+        self.assertIn("mode-music", self.content)
+
+    def test_has_debug_log_panel(self):
+        """index.html must contain a visible debug log panel."""
+        self.assertIn("debug-log", self.content)
+
+    def test_has_debug_log_function(self):
+        """index.html must contain a debugLog function for prompt transparency."""
+        self.assertIn("debugLog", self.content)
+
+    def test_has_wip_indicator(self):
+        """index.html must contain a Work in Progress indicator."""
+        self.assertIn("Work in Progress", self.content)
+
+    def test_has_wav_file_naming(self):
+        """index.html must use .wav extension for downloaded audio files."""
+        self.assertIn(".wav", self.content)
+
 
 class TestShellScriptContent(unittest.TestCase):
     """Tests that verify soundfx.sh contains required functionality."""
@@ -389,6 +414,14 @@ class TestShellScriptContent(unittest.TestCase):
     def test_has_dep_check(self):
         """soundfx.sh must check for required dependencies."""
         self.assertIn("check_deps", self.content)
+
+    def test_has_mode_option(self):
+        """soundfx.sh must support --mode option for sound/music/both generation."""
+        self.assertIn("--mode", self.content)
+
+    def test_has_wav_file_naming(self):
+        """soundfx.sh must use .wav extension for generated output files."""
+        self.assertIn(".wav", self.content)
 
 
 class TestPowerShellScriptContent(unittest.TestCase):
@@ -432,6 +465,14 @@ class TestPowerShellScriptContent(unittest.TestCase):
         self.assertIn("Test-ElevenLabsConnection", self.content)
         self.assertIn("Test-FalConnection", self.content)
         self.assertIn("Test-XaiConnection", self.content)
+
+    def test_has_mode_param(self):
+        """soundfx.ps1 must support -Mode parameter for sound/music/both generation."""
+        self.assertIn("Mode", self.content)
+
+    def test_has_wav_file_naming(self):
+        """soundfx.ps1 must use .wav extension for generated output files."""
+        self.assertIn(".wav", self.content)
 
 
 # ─── CLI runner ───────────────────────────────────────────────────────────────
