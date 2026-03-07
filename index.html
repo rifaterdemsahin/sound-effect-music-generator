@@ -744,7 +744,9 @@ function renderAudioResults(container, results, prompt) {
       item.innerHTML = `<span style="color:var(--error);font-size:0.85rem">✕ Variant ${r.index}: ${escHtml(r.error)}</span>`;
     } else {
       const url = URL.createObjectURL(r.blob);
-      const safeName = prompt.slice(0, 40).replace(/[^a-z0-9]/gi, '_');
+      const words = prompt.trim().split(/\s+/).slice(0, 3)
+        .map(w => w.replace(/[^a-z0-9]/gi, '').toLowerCase()).filter(w => w.length > 0);
+      const safeName = words.length > 0 ? words.join('_') : 'sound';
       item.innerHTML = `
         <span style="font-size:0.8rem;color:var(--text-muted);min-width:70px">Variant ${r.index}</span>
         <audio controls src="${url}"></audio>

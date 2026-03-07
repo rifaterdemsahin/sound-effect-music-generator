@@ -16,7 +16,8 @@ for item in data["door_sounds"]:
     print(f"[DEBUG] Payload: {payload}")
     response = requests.post(API_URL, json=payload, headers=headers)
     if response.ok:
-        fname = desc.replace(" ", "_") + ".mp3"
+        clean_words = [w for w in "".join(c if c.isalnum() or c == " " else "" for c in desc.lower()).split()[:3] if w]
+        fname = ("_".join(clean_words) if clean_words else "sound") + ".mp3"
         with open(fname, "wb") as out:
             out.write(response.content)
         print(f"Saved: {fname}")

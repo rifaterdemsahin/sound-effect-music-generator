@@ -312,12 +312,12 @@ if [[ "$DO_GENERATE" == true ]]; then
   while IFS= read -r suggestion; do
     PROMPT=$(echo "$suggestion" | jq -r '.prompt')
     TS=$(echo "$suggestion" | jq -r '.timestamp')
-    SAFE_PROMPT=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g' | cut -c1-40)
+    SAFE_PROMPT=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' ' ' | awk 'NF{for(i=1;i<=3&&i<=NF;i++) printf "%s%s",$i,(i<3&&i<NF?"_":""); print ""}')
 
     echo "🔊 [$TS] $PROMPT"
 
     for ((v=1; v<=VARIANTS; v++)); do
-      OUTFILE="${OUTPUT_DIR}/${TIMESTAMP}_${SAFE_PROMPT}_v${v}.mp3"
+      OUTFILE="${OUTPUT_DIR}/${SAFE_PROMPT}_v${v}_${TIMESTAMP}.mp3"
       if [[ "$BACKEND" == "fal" ]]; then
         generate_fal "$PROMPT" "$OUTFILE"
       else

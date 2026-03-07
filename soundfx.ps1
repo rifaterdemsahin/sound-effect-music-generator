@@ -312,13 +312,13 @@ if ($Generate) {
     foreach ($s in $Suggestions) {
         $Prompt      = $s.prompt
         $Ts          = $s.timestamp
-        $SafeReplaced = ($Prompt -replace '[^a-zA-Z0-9]', '_').ToLower()
-        $SafePrompt   = $SafeReplaced.Substring(0, [Math]::Min(40, $SafeReplaced.Length))
+        $words      = ($Prompt -split '\s+' | Where-Object { $_ -ne '' } | Select-Object -First 3)
+        $SafePrompt = ($words | ForEach-Object { ($_ -replace '[^a-zA-Z0-9]', '').ToLower() } | Where-Object { $_ -ne '' }) -join '_'
 
         Write-Host "🔊 [$Ts] $Prompt"
 
         for ($v = 1; $v -le $Variants; $v++) {
-            $OutFile = Join-Path $OutputDir "${Timestamp}_${SafePrompt}_v${v}.mp3"
+            $OutFile = Join-Path $OutputDir "${SafePrompt}_v${v}_${Timestamp}.mp3"
             if ($Backend -eq 'fal') {
                 Generate-Fal -Prompt $Prompt -OutFile $OutFile
             }
