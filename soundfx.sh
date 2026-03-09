@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# soundfx.sh — Sound Effect Generator CLI (macOS / Linux / Stream Deck)
+# soundfx.sh — Sound Effect Music Generator CLI (macOS / Linux / Stream Deck)
 # Usage:
 #   ./soundfx.sh script.txt              # Analyse script, print prompts
-#   ./soundfx.sh script.txt --generate   # Analyse + generate sound effects
+#   ./soundfx.sh script.txt --generate   # Analyse + generate sound effects / music
 #   ./soundfx.sh --test                  # Test API connections
 
 set -euo pipefail
@@ -27,6 +27,7 @@ FAL_API_KEY="${FAL_API_KEY:-}"
 XAI_API_KEY="${XAI_API_KEY:-}"
 BACKEND="${BACKEND:-elevenlabs}"
 VARIANTS="${VARIANTS:-3}"
+MODE="${MODE:-sound}"
 
 OUTPUT_DIR="${SCRIPT_DIR}/generated_sounds"
 mkdir -p "$OUTPUT_DIR"
@@ -47,13 +48,14 @@ check_deps() {
 print_usage() {
   cat <<EOF
 Usage:
-  $(basename "$0") <script_file> [--generate] [--variants N] [--backend elevenlabs|fal]
+  $(basename "$0") <script_file> [--generate] [--variants N] [--backend elevenlabs|fal] [--mode sound|music|both]
   $(basename "$0") --test
 
 Options:
   --generate        Generate audio files for each suggested prompt
   --variants N      Number of audio variants to generate per prompt (default: $VARIANTS)
   --backend NAME    Override generation backend: elevenlabs or fal (default: $BACKEND)
+  --mode MODE       Generation mode: sound, music, or both (default: $MODE)
   --test            Test API connections and exit
 
 Environment (.env):
@@ -62,6 +64,7 @@ Environment (.env):
   XAI_API_KEY          Grok/xAI API key
   BACKEND              elevenlabs or fal
   VARIANTS             Number of variants per prompt
+  MODE                 sound, music, or both
 EOF
 }
 
@@ -135,27 +138,44 @@ analyse_script() {
     exit 1
   fi
 
-  echo "🔍 Analysing script with Grok…"
+  local mode_desc
+  case "$MODE" in
+    music) mode_desc="music cues" ;;
+    both)  mode_desc="sound effects and music" ;;
+    *)     mode_desc="sound effects" ;;
+  esac
+
+  local type_instruction
+  case "$MODE" in
+    music) type_instruction='Focus only on music cues. Set type to "music" for every suggestion.' ;;
+    both)  type_instruction='Include both sound effects (type: "sound") and music cues (type: "music").' ;;
+    *)     type_instruction='Focus only on sound effects. Set type to "sound" for every suggestion.' ;;
+  esac
+
+  echo "🔍 Analysing script with Grok… (mode: $MODE)"
 
   local payload
   payload=$(jq -n \
     --arg content "$script_content" \
+    --arg mode_desc "$mode_desc" \
+    --arg type_instr "$type_instruction" \
     '{
       model: "grok-beta",
       temperature: 0.3,
       messages: [
         {
           role: "system",
-          content: "You are a professional sound designer for video production. Analyse the provided video script and return a JSON array of sound effect suggestions. Each suggestion must be an object with: \"timestamp\" (string, e.g. \"0:05\"), \"prompt\" (concise text-to-audio description), \"reason\" (why this sound fits). Return ONLY valid JSON, no markdown, no extra text."
+          content: ("You are a professional sound designer for video production. Analyse the provided video script and return a JSON array of " + $mode_desc + " suggestions. Each suggestion must be an object with: \"timestamp\" (string, e.g. \"0:05\"), \"type\" (\"sound\" or \"music\"), \"prompt\" (concise text-to-audio description), \"reason\" (why this sound fits). " + $type_instr + " Return ONLY valid JSON, no markdown, no extra text.")
         },
         {
           role: "user",
-          content: ("Analyse this video script and suggest sound effects:\n\n" + $content)
+          content: ("Analyse this video script and suggest " + $mode_desc + ":\n\n" + $content)
         }
       ]
     }')
 
   echo "🐛 [DEBUG] Sending analysis request to https://api.x.ai/v1/chat/completions"
+  echo "🐛 [DEBUG] Mode: $MODE — Requesting: $mode_desc"
   echo "🐛 [DEBUG] Payload: $payload"
 
   local response
@@ -231,7 +251,15 @@ generate_fal() {
   echo "  ✅ Saved: $outfile"
 }
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+# ─── Filename Helpers ─────────────────────────────────────────────────────────
+# Generate a safe 3-word snippet from a prompt for use in filenames.
+# Format: [type]_[word1]_[word2]_[word3]_v[n]_[timestamp].wav
+make_snippet() {
+  local prompt="$1"
+  echo "$prompt" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' ' ' \
+    | awk 'NF{for(i=1;i<=3&&i<=NF;i++) printf "%s%s",$i,(i<3&&i<NF?"_":""); print ""}' \
+    | tr -d '\n'
+}
 check_deps
 
 SCRIPT_FILE=""
@@ -253,6 +281,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --backend)
       BACKEND="$2"
+      shift 2
+      ;;
+    --mode)
+      MODE="$2"
       shift 2
       ;;
     --help|-h)
@@ -287,7 +319,7 @@ SCRIPT_CONTENT=$(cat "$SCRIPT_FILE")
 SUGGESTIONS_JSON=$(analyse_script "$SCRIPT_CONTENT")
 
 echo ""
-echo "📋 Suggested Sound Effects:"
+echo "📋 Suggested Sound Effects & Music:"
 echo "─────────────────────────────────────────"
 
 # Validate JSON
@@ -304,7 +336,7 @@ echo "Total: $PROMPT_COUNT prompts"
 
 if [[ "$DO_GENERATE" == true ]]; then
   echo ""
-  echo "🎵 Generating sound effects (backend: $BACKEND, variants: $VARIANTS)…"
+  echo "🎵 Generating sound effects & music (backend: $BACKEND, variants: $VARIANTS, mode: $MODE)…"
   echo ""
 
   TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -312,12 +344,15 @@ if [[ "$DO_GENERATE" == true ]]; then
   while IFS= read -r suggestion; do
     PROMPT=$(echo "$suggestion" | jq -r '.prompt')
     TS=$(echo "$suggestion" | jq -r '.timestamp')
-    SAFE_PROMPT=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' ' ' | awk 'NF{for(i=1;i<=3&&i<=NF;i++) printf "%s%s",$i,(i<3&&i<NF?"_":""); print ""}')
+    TYPE=$(echo "$suggestion" | jq -r '.type // "sound"')
+    SNIPPET=$(make_snippet "$PROMPT")
 
-    echo "🔊 [$TS] $PROMPT"
+    echo "🔊 [$TS] [$TYPE] $PROMPT"
+    echo "  🐛 [DEBUG] Exact prompt being sent to API: $PROMPT"
 
     for ((v=1; v<=VARIANTS; v++)); do
-      OUTFILE="${OUTPUT_DIR}/${SAFE_PROMPT}_v${v}_${TIMESTAMP}.mp3"
+      OUTFILE="${OUTPUT_DIR}/${TYPE}_${SNIPPET}_v${v}_${TIMESTAMP}.wav"
+      echo "  ⏳ Work in Progress — generating variant $v → $(basename "$OUTFILE")"
       if [[ "$BACKEND" == "fal" ]]; then
         generate_fal "$PROMPT" "$OUTFILE"
       else

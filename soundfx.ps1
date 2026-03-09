@@ -1,7 +1,7 @@
-# soundfx.ps1 — Sound Effect Generator CLI (Windows / Stream Deck)
+# soundfx.ps1 — Sound Effect Music Generator CLI (Windows / Stream Deck)
 # Usage:
 #   .\soundfx.ps1 script.txt              # Analyse script, print prompts
-#   .\soundfx.ps1 script.txt --generate   # Analyse + generate sound effects
+#   .\soundfx.ps1 script.txt --generate   # Analyse + generate sound effects / music
 #   .\soundfx.ps1 --test                  # Test API connections
 
 [CmdletBinding()]
@@ -15,6 +15,9 @@ param (
 
     [ValidateSet('elevenlabs', 'fal')]
     [string]$Backend = '',
+
+    [ValidateSet('sound', 'music', 'both')]
+    [string]$Mode = '',
 
     [switch]$Test,
 
@@ -57,6 +60,7 @@ $EnvVariants   = [System.Environment]::GetEnvironmentVariable('VARIANTS')       
 # CLI args override .env
 if ($Backend -eq '') { $Backend = $EnvBackend }
 if ($Variants -eq 0) { $Variants = [int]$EnvVariants }
+if ($Mode -eq '')    { $Mode = [System.Environment]::GetEnvironmentVariable('MODE') ?? 'sound' }
 
 $OutputDir = Join-Path $ScriptDir 'generated_sounds'
 if (-not (Test-Path $OutputDir)) { New-Item -ItemType Directory -Path $OutputDir | Out-Null }
@@ -65,13 +69,14 @@ if (-not (Test-Path $OutputDir)) { New-Item -ItemType Directory -Path $OutputDir
 function Print-Usage {
     Write-Host @"
 Usage:
-  .\soundfx.ps1 <script_file> [-Generate] [-Variants N] [-Backend elevenlabs|fal]
+  .\soundfx.ps1 <script_file> [-Generate] [-Variants N] [-Backend elevenlabs|fal] [-Mode sound|music|both]
   .\soundfx.ps1 -Test
 
 Options:
   -Generate         Generate audio files for each suggested prompt
   -Variants N       Number of audio variants per prompt (default: $Variants)
   -Backend NAME     Override backend: elevenlabs or fal (default: $Backend)
+  -Mode MODE        Generation mode: sound, music, or both (default: $Mode)
   -Test             Test API connections and exit
 
 Environment (.env):
@@ -80,6 +85,7 @@ Environment (.env):
   XAI_API_KEY          Grok/xAI API key
   BACKEND              elevenlabs or fal
   VARIANTS             Number of variants per prompt
+  MODE                 sound, music, or both
 "@
 }
 
@@ -185,7 +191,18 @@ function Invoke-ScriptAnalysis {
         exit 1
     }
 
-    Write-Host "🔍 Analysing script with Grok…"
+    $modeDesc = switch ($Mode) {
+        'music' { 'music cues' }
+        'both'  { 'sound effects and music' }
+        default { 'sound effects' }
+    }
+    $typeInstruction = switch ($Mode) {
+        'music' { 'Focus only on music cues. Set type to "music" for every suggestion.' }
+        'both'  { 'Include both sound effects (type: "sound") and music cues (type: "music").' }
+        default { 'Focus only on sound effects. Set type to "sound" for every suggestion.' }
+    }
+
+    Write-Host "🔍 Analysing script with Grok… (mode: $Mode)"
 
     $body = @{
         model       = 'grok-beta'
@@ -193,16 +210,17 @@ function Invoke-ScriptAnalysis {
         messages    = @(
             @{
                 role    = 'system'
-                content = 'You are a professional sound designer for video production. Analyse the provided video script and return a JSON array of sound effect suggestions. Each suggestion must be an object with: "timestamp" (string, e.g. "0:05"), "prompt" (concise text-to-audio description), "reason" (why this sound fits). Return ONLY valid JSON, no markdown, no extra text.'
+                content = "You are a professional sound designer for video production. Analyse the provided video script and return a JSON array of $modeDesc suggestions. Each suggestion must be an object with: `"timestamp`" (string, e.g. `"0:05`"), `"type`" (`"sound`" or `"music`"), `"prompt`" (concise text-to-audio description), `"reason`" (why this sound fits). $typeInstruction Return ONLY valid JSON, no markdown, no extra text."
             },
             @{
                 role    = 'user'
-                content = "Analyse this video script and suggest sound effects:`n`n$ScriptContent"
+                content = "Analyse this video script and suggest ${modeDesc}:`n`n$ScriptContent"
             }
         )
     }
 
     Write-Host "🐛 [DEBUG] Sending analysis request to https://api.x.ai/v1/chat/completions"
+    Write-Host "🐛 [DEBUG] Mode: $Mode — Requesting: $modeDesc"
     Write-Host "🐛 [DEBUG] Payload: $($body | ConvertTo-Json -Depth 10 -Compress)"
 
     $resp = Invoke-ApiRequest -Uri 'https://api.x.ai/v1/chat/completions' `
@@ -292,11 +310,11 @@ $ScriptContent = Get-Content -Path $ScriptFile -Raw
 $Suggestions   = Invoke-ScriptAnalysis -ScriptContent $ScriptContent
 
 Write-Host ""
-Write-Host "📋 Suggested Sound Effects:"
+Write-Host "📋 Suggested Sound Effects & Music:"
 Write-Host "─────────────────────────────────────────"
 
 foreach ($s in $Suggestions) {
-    Write-Host "[$($s.timestamp)] $($s.prompt)  — $($s.reason)"
+    Write-Host "[$($s.timestamp)] [$($s.type ?? 'sound')] $($s.prompt)  — $($s.reason)"
 }
 
 Write-Host "─────────────────────────────────────────"
@@ -304,7 +322,7 @@ Write-Host "Total: $($Suggestions.Count) prompts"
 
 if ($Generate) {
     Write-Host ""
-    Write-Host "🎵 Generating sound effects (backend: $Backend, variants: $Variants)…"
+    Write-Host "🎵 Generating sound effects & music (backend: $Backend, variants: $Variants, mode: $Mode)…"
     Write-Host ""
 
     $Timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
@@ -312,13 +330,18 @@ if ($Generate) {
     foreach ($s in $Suggestions) {
         $Prompt      = $s.prompt
         $Ts          = $s.timestamp
-        $words      = ($Prompt -split '\s+' | Where-Object { $_ -ne '' } | Select-Object -First 3)
-        $SafePrompt = ($words | ForEach-Object { ($_ -replace '[^a-zA-Z0-9]', '').ToLower() } | Where-Object { $_ -ne '' }) -join '_'
+        $Type        = if ($s.type) { $s.type } else { 'sound' }
+        # Build 3-word snippet: lowercase alphanumeric words joined with underscores.
+        # Output filename format: [type]_[word1]_[word2]_[word3]_v[n]_[timestamp].wav
+        $words       = ($Prompt -split '\s+' | Where-Object { $_ -ne '' } | Select-Object -First 3)
+        $Snippet     = ($words | ForEach-Object { ($_ -replace '[^a-zA-Z0-9]', '').ToLower() } | Where-Object { $_ -ne '' }) -join '_'
 
-        Write-Host "🔊 [$Ts] $Prompt"
+        Write-Host "🔊 [$Ts] [$Type] $Prompt"
+        Write-Host "  🐛 [DEBUG] Exact prompt being sent to API: $Prompt"
 
         for ($v = 1; $v -le $Variants; $v++) {
-            $OutFile = Join-Path $OutputDir "${SafePrompt}_v${v}_${Timestamp}.mp3"
+            $OutFile = Join-Path $OutputDir "${Type}_${Snippet}_v${v}_${Timestamp}.wav"
+            Write-Host "  ⏳ Work in Progress — generating variant $v → $(Split-Path $OutFile -Leaf)"
             if ($Backend -eq 'fal') {
                 Generate-Fal -Prompt $Prompt -OutFile $OutFile
             }
