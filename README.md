@@ -1,7 +1,7 @@
 # 🎵 AI Sound Effects API Report for Script Production
 
 
-> https://rifaterdemsahin.github.io/soundeffects/
+> https://rifaterdemsahin.github.io/sound-effect-music-generator/
 
 ## 📋 Executive Summary
 
